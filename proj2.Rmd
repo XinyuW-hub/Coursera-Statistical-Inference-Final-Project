@@ -1,0 +1,140 @@
+---
+title: "Hypothesis Analysis on ToothGrowth data set"
+subtitle: "Coursera Statistical Inference Course Project II"
+author: "Xinyu W"
+date: "7/27/2020"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+## Overview
+
+This project will investigate the significance of different dose and/or different delivery methods on the length of odontoblasts (cells responsible for tooth growth). There are three levels of doses of vitamin C (0.5, 1, and 2 mg/day), and two delivery methods (orage juice and ascorbic acid). This project involves t-test for hypothesis analysis.
+
+**Set Global Environment**
+```{r globalEnv}
+library(knitr)
+opts_chunk$set(warning = FALSE, message = FALSE,
+               echo = TRUE)
+library(ggplot2)
+```
+
+## Load the ToothGrowth data and perform some basic exploratory data analyses
+
+After loading the *ToothGrowth* dataset, we see it contains 60 observations of 3 variables - len, supp and doses. Looking into the dataset, we find first 30 observations from VC and the rest from OJ. Right now the dose column is numeric. But for the convenience of later comparison, we will convert it to factor.
+
+```{r load}
+#load the dataset ToothGrowth and show the basic info
+library(datasets)
+data("ToothGrowth")
+str(ToothGrowth)
+head(ToothGrowth,6)
+ToothGrowth$dose <- as.factor(ToothGrowth$dose)
+```
+
+## Provide a basic summary of the data
+
+Again, by looking into the summary of the data set, we can see how many observations there are for each level of doses and each supplement type.
+
+```{r sumTG}
+#give a summary of ToothGrowth
+summary(ToothGrowth)
+#explore the exact data of column dose and supp
+table(ToothGrowth$dose)
+table(ToothGrowth$supp)
+```
+
+By plotting the *len* data according to different dose level, we can have a sense of how it distributes and changes. Here, we can approximately see that as dose increases, the length also increases. There is a relatively wider range in dose 1.0 than dose 0.5 and 2.0
+
+```{r dosePlot}
+#plot the dose data according to len
+library(ggplot2)
+ggplot(aes(x=as.factor(dose), y = len), data = ToothGrowth) + geom_boxplot(aes(fill=dose)) + labs(x = "Dose Levels", y = "length of odontoblasts")
+```
+With the plot of suppliment methods, we see there's a great overlapping area between OJ and VC, which gives us a sense that these two methods *might* have lower significance in the length variable. We can later try to confirm this through t-test.
+
+```{r suppPlot}
+#plot the supp data according to len
+ggplot(aes(x=supp, y = len), data = ToothGrowth) + geom_boxplot(aes(fill=supp)) + labs(x = "Suppliment Methods", y = "length of odontoblasts")
+```
+
+Here we generate the plot through different facets by dose. What's useful in showing these details is that we see different sizes of overlapping areas in the supp plots if we divide overall data by dose levels. This gives us a hint that the significance of supplicant methods might not be clear until we pay attention to the combining effect with dose levels.
+
+```{r overallPlot}
+#show an overview of both supp and dose data we got.
+qplot(x = supp, y = len, data = ToothGrowth, facets = ~dose) + geom_boxplot(aes(fill=supp)) + labs(x = "Suppliment Methods", y = "length of odontoblasts")
+```
+
+
+## Use confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose
+
+In this project, we are going to take t-test and analyze through confidence intervals and p-values, since the number of observations of each variable we are going to compare for is under or equal to 30.
+
+### Compare between different **supp**
+
+**H0: The supplement type (VC or OJ) does NOT have any influence on tooth growth**  
+**Ha: The supplement type (VC or OJ) DOES have influence on tooth growth**
+
+```{r compareSupp}
+t.test(len~supp, data = ToothGrowth, paired = FALSE, var.equal = FALSE)
+```
+Here, we see: 
+
+* The p-value is 0.06, which is larger than the significance level alpha (0.05)
+* However, the confidence interval cross from -0.17 to 7.57 (from negative to positive), thus NOT clear whether we could reject **H0**
+
+### Compare among different **dose**
+
+**H0: The different dose levels(0.5,1,2) does NOT have any influence on tooth growth**  
+**Ha: The different dose levels(0.5,1,2) DOES have influence on tooth growth**
+
+```{r compareDose}
+dose <- ToothGrowth$dose
+supp <- ToothGrowth$supp
+len <- ToothGrowth$len
+t.test(len[dose==0.5],len[dose==1], data=ToothGrowth,
+       paired = FALSE, var.equal = FALSE)
+t.test(len[dose==0.5],len[dose==2], data=ToothGrowth,
+       paired = FALSE, var.equal = FALSE)
+t.test(len[dose==1],len[dose==2], data=ToothGrowth,
+       paired = FALSE, var.equal = FALSE)
+```
+
+We clearly see that whether it's from 0.5 to 1, 1 to 2, or 0.5 to 2:
+
+* The confidence interval is consistently negative.
+* The p-value is so small (close to 0) and much smaller than alpha (0.05)
+
+Thus, we can be pretty sure about the significance of dose levels on teeth growth, which means that we are going to REJECT our **H0**.
+
+### Further compare the supp accoding to different dose
+
+Recalling what we saw on the overall plot of supplement methods by different dose levels, we need to take a further step in "stripping off" the effect of dose levels and exploring the effect from types of supplement.
+
+```{r}
+TG_0.5 <- subset(ToothGrowth, dose == 0.5)
+TG_1.0 <- subset(ToothGrowth, dose == 1)
+TG_2.0 <- subset(ToothGrowth, dose == 2)
+t.test(len~supp, data = TG_0.5, paired = FALSE, var.equal = FALSE)
+t.test(len~supp, data = TG_1.0, paired = FALSE, var.equal = FALSE)
+t.test(len~supp, data = TG_2.0, paired = FALSE, var.equal = FALSE)
+
+```
+
+Here, we see:
+
+* In dose levels 0.5 and 1, both confidence intervals are positive, but the p-value is too small that we would take this as extreme.
+* In dose level 2.0, although the p-value is surprisingly 0.96, the confidence interval across from negative to positive. Thus, we can NOT accept **H0**. 
+
+## State your conclusions and the assumptions needed for your conclusions
+
+From all the plots, tests and analysis above, we here generate our conclusions:
+
+* The supplement type has little or **NO** effect on the length of odontoblasts (tooth growth).
+* The different dose levels DOES have effect on the length of odontoblasts (tooth growth). As dose level increases, the tooth growth increases.
+
+And, we state our assumptions here：
+
+* This sample of guinea pigs is representative of the population.
+* For each t-test, the variance is treated as different.
+* The experiment along with its design and method is well-controled without any other significant factors to our analysis.
